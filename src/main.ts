@@ -1,133 +1,125 @@
-import { initBuffers } from "./initBuffers.ts"
-import { drawScene } from "./drawScene.ts";
-import {fetchShaderTexts} from "./fetchShaderTexts.ts"
+import "./style.css";
 
-main();
+const nativeWidth = 1920;  // the resolution the games is designed to look best in
+const nativeHeight = 1080;
 
-//
-// start here
-//
+document.addEventListener("DOMContentLoaded", main);
+
+window.addEventListener("resize", () => {
+    resize();
+    draw();
+});
+
+interface ScreenParams {
+    deviceWidth: number,
+    deviceHeight: number,
+    offSetToNativeTop: number,
+    offSetToNativeLeft: number,
+    scaleFitNative: number,
+}
+
+function resize(): ScreenParams | null {
+    const canvas = document.querySelector("#main-canvas") as HTMLCanvasElement
+    if (canvas === null) {
+        console.error("Unable to locate `main-canvas`.");
+        return null
+    }
+
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) {
+        console.error("Unable to initialize canvas conxtext. Your browser or machine may not support it.");
+        return null
+    }
+
+    const deviceWidth = window.innerWidth;
+    const deviceHeight = window.innerHeight;
+
+    const scaleFitNative = Math.min(deviceWidth / nativeWidth, deviceHeight / nativeHeight, 1);
+    canvas.style.width = deviceWidth + "px";
+    canvas.style.height = deviceHeight + "px";
+    canvas.width = deviceWidth;
+    canvas.height = deviceHeight;
+
+    // sets center of screen to origin
+    ctx.setTransform(
+        scaleFitNative,0,
+        0,scaleFitNative,
+        Math.floor(deviceWidth/2),
+        Math.floor(deviceHeight/2)
+    );
+    console.log(scaleFitNative)
+    var offSetToNativeTop = (-nativeHeight/2)*scaleFitNative;
+    var offSetToNativeLeft = (-nativeWidth/2)*scaleFitNative;
+    return {
+        deviceWidth,
+        deviceHeight,
+        offSetToNativeTop,
+        offSetToNativeLeft,
+        scaleFitNative
+    }
+}
+
+function draw() {
+    if (canvas === null) {
+        console.error("Canvas is null in draw().");
+        return;
+    }
+    if (ctx === null) {
+        console.error("Context is null in draw().");
+        return;
+    }
+    if (sp === null) {
+        console.error("Screen Params is null in draw().");
+        return;
+    }
+
+    ctx.fillStyle = "black"
+    ctx.fillRect(sp.offSetToNativeLeft, sp.offSetToNativeTop, nativeWidth * sp.scaleFitNative, nativeHeight * sp.scaleFitNative)
+
+    // debug circles
+    // ctx.fillStyle = "orange"
+    // ctx.beginPath();
+    // ctx.arc(sp.offSetToNativeLeft, sp.offSetToNativeTop, 50, 0, 2*Math.PI)
+    // ctx.fill()
+
+    // ctx.beginPath();
+    // ctx.arc(sp.offSetToNativeLeft, -sp.offSetToNativeTop, 50, 0, 2*Math.PI)
+    // ctx.fill()
+
+    // ctx.beginPath();
+    // ctx.arc(-sp.offSetToNativeLeft, sp.offSetToNativeTop, 50, 0, 2*Math.PI)
+    // ctx.fill()
+
+    // ctx.beginPath();
+    // ctx.arc(-sp.offSetToNativeLeft, -sp.offSetToNativeTop, 50, 0, 2*Math.PI)
+    // ctx.fill()
+}
+
+function gameLoop() {
+    draw()
+    requestAnimationFrame(gameLoop);
+}
+
+let canvas: HTMLCanvasElement | null;
+let ctx: CanvasRenderingContext2D | null;
+let sp: ScreenParams  | null;
 function main() {
-    console.log(fetchShaderTexts("fragmentShader.glsl", "vertexShader.glsl"))
-//   const canvas = document.querySelector("#glcanvas") as HTMLCanvasElement
-//   // Initialize the GL context
-//   const gl = canvas.getContext("webgl");
+    canvas = document.querySelector("#main-canvas") as HTMLCanvasElement
+    if (canvas === null) {
+        console.error("Unable to locate `main-canvas`.");
+        return;
+    }
 
-//   // Only continue if WebGL is available and working
-//   if (gl === null) {
-//     alert(
-//       "Unable to initialize WebGL. Your browser or machine may not support it."
-//     );
-//     return;
-//   }
+    ctx = canvas.getContext("2d");
+    if (ctx === null) {
+        console.error("Unable to initialize canvas conxtext. Your browser or machine may not support it.");
+        return;
+    }
 
-//   // Set clear color to black, fully opaque
-//   gl.clearColor(0.0, 0.0, 0.0, 1.0);
-//   // Clear the color buffer with specified clear color
-//   gl.clear(gl.COLOR_BUFFER_BIT);
-
-//   // Vertex shader program
-//   const vsSource = `
-//     attribute vec4 aVertexPosition;
-//     uniform mat4 uModelViewMatrix;
-//     uniform mat4 uProjectionMatrix;
-//     void main() {
-//       gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
-//     }
-// `;
-
-//   const fsSource = `
-//     void main() {
-//       gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-//     }
-//   `;
-
-//   // Initialize a shader program; this is where all the lighting
-//   // for the vertices and so forth is established.
-//   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
-//   if (shaderProgram == null) {
-//     console.error("Error loading shader program")
-//     return
-//   }
-
-//   // Collect all the info needed to use the shader program.
-//   // Look up which attribute our shader program is using
-//   // for aVertexPosition and look up uniform locations.
-//   const programInfo = {
-//     program: shaderProgram,
-//     attribLocations: {
-//       vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
-//     },
-//     uniformLocations: {
-//       projectionMatrix: gl.getUniformLocation(
-//         shaderProgram,
-//         "uProjectionMatrix"
-//       ),
-//       modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
-//     },
-//   };
-
-//   // Here's where we call the routine that builds all the
-//   // objects we'll be drawing.
-//   const buffers = initBuffers(gl);
-
-//   // Draw the scene
-//   drawScene(gl, programInfo, buffers);
-// }
-
-// //
-// // Initialize a shader program, so WebGL knows how to draw our data
-// //
-// function initShaderProgram(gl: WebGLRenderingContext, vsSource, fsSource) {
-//   const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
-//   if (vertexShader == null) {
-//     console.error("Error initializing vertex shader")
-//     return 
-//   }
-//   const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
-//   if (fragmentShader == null) {
-//     console.error("Error initializing fragment shader")
-//     return 
-//   }
-
-//   // Create the shader program
-//   const shaderProgram = gl.createProgram();
-//   gl.attachShader(shaderProgram, vertexShader);
-//   gl.attachShader(shaderProgram, fragmentShader);
-//   gl.linkProgram(shaderProgram);
-
-//   // If creating the shader program failed, alert
-
-//   if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-//     console.error(`Unable to initialize the shader program: ${gl.getProgramInfoLog(shaderProgram)}`);
-//     return null;
-//   }
-
-//   return shaderProgram;
-// }
-
-// //
-// // creates a shader of the given type, uploads the source and
-// // compiles it.
-// //
-// function loadShader(gl: WebGLRenderingContext, type: GLenum, source) {
-//   const shader = gl.createShader(type);
-//     if (shader == null) {
-//         console.error("Error creating shader")
-//         return
-//     }
-
-//   // Send the source to the shader object
-//   gl.shaderSource(shader, source);
-
-//   // Compile the shader program
-//   gl.compileShader(shader);
-
-//   // See if it compiled successfully
-//   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-//     console.error(`An error occurred compiling the shaders: ${gl.getShaderInfoLog(shader)}`);
-//     gl.deleteShader(shader);
-//     return null;
-//   }
-//   return shader;
+    sp = resize()
+    if (sp === null) {
+        console.error("An error occured while resizing the window.");
+        return;
+    }
+    requestAnimationFrame(gameLoop);
 }
