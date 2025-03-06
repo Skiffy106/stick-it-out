@@ -18,6 +18,24 @@ export function getMagnitude(vector: Vector2): number {
     return Math.sqrt(vector.x ** 2 + vector.y ** 2);
 }
 
+export function getDifferenceVector(vector1: Vector2, vector2: Vector2): Vector2 {
+    return {
+        x: vector1.x - vector2.x,
+        y: vector1.y - vector2.y
+    }
+}
+
+export function getAngle(vector1: Vector2, vector2: Vector2): number {
+    return Math.atan2(vector2.y - vector1.y, vector2.x - vector1.x);
+}
+
+export function getPerpendicularVector(vector: Vector2, left: boolean = true): Vector2 {
+    return {
+        x: left ? -vector.y : vector.y,
+        y: left ? vector.x : -vector.x
+    }
+}
+
 export function scaleVector(vector: Vector2, scale: number) {
     return {
         x: vector.x * scale,

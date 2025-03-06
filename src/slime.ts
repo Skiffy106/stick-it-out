@@ -1,5 +1,5 @@
 import { ScreenParams, Vector2 } from "./types";
-import { getMagnitude } from "./utils";
+import { getAngle, getDifferenceVector, getDistance, getMagnitude, getPerpendicularVector, normalizeVector } from "./utils";
 
 const SlimeParticleRadius = 10;
 
@@ -20,15 +20,19 @@ class SlimeParticle {
 export class Slime {
     private particles: SlimeParticle[];
     private centerPosition: Vector2;
-    private springConstant: number;
-    private springDamping: number;
+    private centerSpringConstant: number;
+    private centerSpringDamping: number;
+    private angularSpringConstant: number;
+    private angularSpringDamping: number;
     private restLength: number;
     private numberOfParticles: number;
 
     constructor(centerX: number, centerY: number, radius: number, numberOfParticles: number = 8) {
         this.centerPosition = { x: centerX, y: centerY };
-        this.springConstant = 5000;
-        this.springDamping = 0.9;
+        this.centerSpringConstant = 5000;
+        this.centerSpringDamping = 0.9;
+        this.angularSpringConstant = 5000;
+        this.angularSpringDamping = 0.9;
         this.restLength = radius;
         this.particles = [];
         this.numberOfParticles = numberOfParticles;
@@ -44,11 +48,20 @@ export class Slime {
 
     update(deltaTime: number, sp: ScreenParams) {
         const restitution = 0.7;
-        let centerForceX = 0;
-        let centerForceY = 0;
         const dt = Math.min(deltaTime / 1000, 0.016);
         
         this.particles.forEach((particle, index) => {
+            // const centerDiff = getDifferenceVector(particle.position, this.centerPosition)
+            // const centerDiffMagnitude = getMagnitude(centerDiff)
+            // const centerDiffNormalized = normalizeVector(centerDiff)
+            // if (centerDiffMagnitude != 0) {
+            //     const centerSpringForceX = (centerDiffNormalized.x / centerDiffMagnitude) * this.centerSpringConstant
+            //     const centerSpringForceY = (centerDiffNormalized.y / centerDiffMagnitude) * this.centerSpringConstant
+                
+            //     this.particles[index].velocity.x += (centerSpringForceX) * dt * this.centerSpringDamping;
+            //     this.particles[index].velocity.y += (centerSpringForceY) * dt * this.centerSpringDamping;
+            // }
+
             const desiredAngle = index * (2 * Math.PI) / this.numberOfParticles + Math.PI / this.numberOfParticles;
             console.log("Desired Angle: ", desiredAngle / (Math.PI * 2), "Index: ", index)
             const desiredX = this.centerPosition.x + Math.cos(desiredAngle) * this.restLength;
@@ -60,22 +73,19 @@ export class Slime {
             // Avoid division by zero
             if (magnitude != 0) {
                 console.log("Magnitude: ", magnitude, ", X Diff: ", xDiff, ", Y Diff: ", yDiff)
-                const springForceX = (xDiff / magnitude) * this.springConstant;
-                const springForceY = (yDiff / magnitude) * this.springConstant;
-                console.log("Spring Force: ", springForceX, springForceY, "Spring Constant: ", this.springConstant)
+                const springForceX = (xDiff / magnitude) * this.centerSpringConstant;
+                const springForceY = (yDiff / magnitude) * this.centerSpringConstant;
+                console.log("Spring Force: ", springForceX, springForceY, "Spring Constant: ", this.centerSpringConstant)
 
                 // Apply all forces with appropriate damping
-                this.particles[index].velocity.x += (springForceX) * dt * this.springDamping;
-                this.particles[index].velocity.y += (springForceY) * dt * this.springDamping;
-                console.log("x: ", (springForceX) * dt * this.springDamping, "y: ", (springForceY) * dt * this.springDamping)
-
-                centerForceX -= springForceX * this.springDamping; // Reduced effect on center with 0.5 multiplier
-                centerForceY -= springForceY * this.springDamping;
+                this.particles[index].velocity.x += (springForceX) * dt * this.centerSpringDamping;
+                this.particles[index].velocity.y += (springForceY) * dt * this.centerSpringDamping;
+                console.log("x: ", (springForceX) * dt * this.centerSpringDamping, "y: ", (springForceY) * dt * this.centerSpringDamping)
             } else {
                 console.log("Magnitude is 0")
             }   
             // Apply gravity (undampened)
-            const gravity = 1500;
+            const gravity = 1000;
             this.particles[index].velocity.y += gravity * dt;
 
             // Update positions
@@ -116,21 +126,32 @@ export class Slime {
     draw(ctx: CanvasRenderingContext2D, sp: ScreenParams) {
         
         ctx.beginPath();
-        ctx.arc(this.centerPosition.x * sp.scaleFitNative, this.centerPosition.y * sp.scaleFitNative, 5, 0, 2 * Math.PI);
-        ctx.fillStyle = "red";
+        const firstParticle = this.particles[0];
+        const angleFirstParticle = getAngle(this.centerPosition, firstParticle.position);
+        const angleLeft = angleFirstParticle + Math.PI / 2;
+        const angleRight = angleFirstParticle - Math.PI / 2;
+        ctx.moveTo((firstParticle.position.x + Math.cos(angleLeft) + Math.cos(angleFirstParticle) * firstParticle.radius) * sp!.scaleFitNative, (firstParticle.position.y + Math.sin(angleLeft) + Math.sin(angleFirstParticle) * firstParticle.radius) * sp!.scaleFitNative);
+        ctx.lineTo((firstParticle.position.x + Math.cos(angleRight) +   Math.cos(angleFirstParticle) * firstParticle.radius) * sp!.scaleFitNative, (firstParticle.position.y + Math.sin(angleRight) + Math.sin(angleFirstParticle) * firstParticle.radius) * sp!.scaleFitNative);
+        this.particles.forEach((particle, index) => {
+            if (index != 0) {
+                const angle = getAngle(this.centerPosition, particle.position);
+                const angleLeft = angle + Math.PI / 2;
+                const angleRight = angle - Math.PI / 2;
+                ctx.lineTo((particle.position.x + Math.cos(angleLeft) + Math.cos(angle) * particle.radius) * sp!.scaleFitNative, (particle.position.y + Math.sin(angleLeft) + Math.sin(angle) * particle.radius) * sp!.scaleFitNative);
+                ctx.lineTo((particle.position.x + Math.cos(angleRight) + Math.cos(angle) * particle.radius) * sp!.scaleFitNative, (particle.position.y + Math.sin(angleRight) + Math.sin(angle) * particle.radius) * sp!.scaleFitNative);
+            }
+        })
+        ctx.fillStyle = "green";
+        ctx.closePath();
         ctx.fill();
 
         // Draw the circles
         ctx.lineWidth = 2;
-        this.particles.forEach((particle, index) => {
+        this.particles.forEach((particle) => {
             ctx!.beginPath();
             ctx!.arc(particle.position.x * sp!.scaleFitNative, particle.position.y * sp!.scaleFitNative, particle.radius, 0, 2 * Math.PI);
-            if (index == 0) {
-                ctx!.strokeStyle = "blue";
-            } else {
-                ctx!.strokeStyle = "green";
-            }
-            ctx!.stroke();
+            ctx!.fillStyle = "green";
+            ctx!.fill();
         });
     }
 
